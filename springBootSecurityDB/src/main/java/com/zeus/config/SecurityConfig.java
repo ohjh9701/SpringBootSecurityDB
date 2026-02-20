@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -13,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
 
 import com.zeus.common.security.CustomAccessDeniedHandler;
 import com.zeus.common.security.CustomLoginSuccessHandler;
@@ -25,10 +28,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled=true, securedEnabled=true)
 public class SecurityConfig {
 	
 	@Autowired
-	DataSource datasource;
+	DataSource dataSource;
 
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
@@ -42,10 +46,10 @@ public class SecurityConfig {
 		httpSecurity.authorizeHttpRequests(auth -> auth
 				.dispatcherTypeMatchers(DispatcherType.FORWARD).permitAll()
 				.requestMatchers("/accessError", "/login").permitAll()
-				.requestMatchers("/board/list").permitAll() // 게시판 목록: 누구나
-				.requestMatchers("/board/register").hasRole("MEMBER") // 게시판 등록: 회원만
-				.requestMatchers("/notice/list").permitAll() // 공지사항 목록: 누구나
-				.requestMatchers("/notice/register").hasRole("ADMIN") // 공지사항 등록: 관리자만
+				//.requestMatchers("/board/list").permitAll() // 게시판 목록: 누구나
+				//.requestMatchers("/board/register").hasRole("MEMBER") // 게시판 등록: 회원만
+				//.requestMatchers("/notice/list").permitAll() // 공지사항 목록: 누구나
+				//.requestMatchers("/notice/register").hasRole("ADMIN") // 공지사항 등록: 관리자만
 				.anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
 		);
 		
@@ -75,10 +79,19 @@ public class SecurityConfig {
 		        .deleteCookies("JSESSIONID", "remember-me") // 로그아웃 시 관련 쿠키 삭제
 		        .permitAll()                         // 로그아웃 요청은 누구나 접근 가능해야 함
 		    );
+		
+		// 5. 자동 로그인 기능 설정
+		httpSecurity.rememberMe(remember -> remember
+				.key("zeus")
+				.tokenRepository(createJDBCRepository())
+				.tokenValiditySeconds(60*60*24)
+				);
 
 		return httpSecurity.build();
 	}
 	
+
+
 	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
 		auth.userDetailsService(createUserDetailsService()).passwordEncoder(createPasswordEncoder());
 	}
@@ -104,5 +117,12 @@ public class SecurityConfig {
 	public AuthenticationSuccessHandler createAuthenticationSuccessHandler() {
 		return new CustomLoginSuccessHandler();
 
-	}	
+	}
+	
+	private PersistentTokenRepository createJDBCRepository() {
+		JdbcTokenRepositoryImpl repo = new JdbcTokenRepositoryImpl();
+		repo.setDataSource(dataSource);
+		return repo;
+
+	}
 }
