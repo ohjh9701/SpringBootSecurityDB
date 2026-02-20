@@ -1,5 +1,6 @@
 package com.zeus.controller;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Slf4j
 @Controller
+@MapperScan(basePackages = "com.zeus.mapper")
 public class HomeController {
 
 	@GetMapping("/")
